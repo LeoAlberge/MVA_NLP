@@ -1,0 +1,6 @@
+numpy
+pytree
+jupyter
+matplotlib
+scipy
+nltk
