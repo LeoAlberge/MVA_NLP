@@ -1,6 +1,6 @@
 import re
 from nltk.tree import Tree
-
+import numpy as np
 from collections import defaultdict
 
 def read_file(filepath):
@@ -99,64 +99,79 @@ class PCFGParser(object):
     def count_rules(self, rules):
         for rule in rules:
             if rule.is_lexical():
-                self.lexicon_counts[rule.lhs()]
-                if rule.lhs() not in self.lexicon_counts:
-                    self.lexicon_counts[rule.lhs()] = 1
-                    self.lexicon_rules_counts[rule.lhs()] = {}
-               else:
-                    self.lexicon_counts[rule.lhs()] += 1
-
-               if rule.rhs() not in self.lexicon_rules_counts[rule.lhs()]:
-                    self.lexicon_rules_counts[rule.lhs()][rule.rhs()] = 1
-               else:
-                    self.lexicon_rules_counts[rule.lhs()] [rule.rhs()] += 1
+                self.lexicon_counts[rule.lhs()] += 1
+                self.lexicon_rules_counts[rule.lhs(), rule.rhs()] += 1
             else:
-                if rule.lhs() not in self.non_terminal_counts:
-                    self.non_terminal_counts[rule.lhs()] = 1
-                    self.non_terminal_rules_counts[rule.lhs()] = {}
-                else:
-                    self.non_terminal_counts[rule.lhs()] += 1
-
-                if rule.rhs() not in self.non_terminal_rules_counts[rule.lhs()]:
-                    self.non_terminal_rules_counts[rule.lhs()][rule.rhs()] = 1
-                else:
-                    self.non_terminal_rules_counts[rule.lhs()][rule.rhs()] += 1
+                self.non_terminal_counts[rule.lhs()] += 1
+                self.non_terminal_rules_counts[rule.lhs(), rule.rhs()] += 1
 
     def proba_lexicon(self, key, word):
-        return float(self.lexicon_rules_counts[key][word])/self.lexicon_counts[key]
+        return float(self.lexicon_rules_counts[key, word])/self.lexicon_counts[key]
 
     def proba_rule(self, key, w1, w2):
-        return float(self.non_terminal_rules_counts[key][w1, w2]) / self.non_terminal_counts[key]
+        return float(self.non_terminal_rules_counts[key, (w1, w2)])/self.non_terminal_counts[key]
 
-    def learn(self):
-        for key in self.lexicon_counts.keys():
-            self.probabilistic_lexicon[key] = {}
-            for word in self.lexicon_rules_counts[key].keys():
-                self.probabilistic_lexicon[key][word] = self.proba_lexicon(key, word)
+    def log_proba_lexicon(self, key, word):
+        return np.log(float(self.lexicon_rules_counts[key, word])/self.lexicon_counts[key])
 
-        for key in self.non_terminal_counts.keys():
-            self.probabilistic_rules[key] = {}
-            for w1, w2 in self.non_terminal_rules_counts[key].keys():
-                self.non_terminal_rules_counts[key][w1, w2] = self.proba_rule(key, w1, w2)
+    def log_proba_rule(self, key, w1, w2):
+        return np.log(float(self.non_terminal_rules_counts[key, (w1, w2)])/self.non_terminal_counts[key])
 
     def CKY(self, sentence):
-        pr = defaultdict(float)
-        for j in range(len(sentence)):
-            word = sentence[j]
+        pr = defaultdict(lambda:-np.inf)
+        back = defaultdict()
+        lexicon_rules = list(self.lexicon_counts.keys())
+        non_terminal_rules = list(self.non_terminal_rules_counts.keys())
+        for j in range(1, len(sentence)+1):
+            word = tuple([sentence[j-1]])
+            for key in lexicon_rules:
+                if self.proba_lexicon(key, word) != 0:
+                    pr[j-1, j, key] = self.log_proba_lexicon(key, word)
+
+            for i in range(j-2, -1, -1):
+                for k in range(i+1, j):
+                    for A, (B, C) in non_terminal_rules:
+
+                        if pr[i, k, B] > -np.inf and pr[k, j, C] > -np.inf:
+                            if self.proba_rule(A, B, C) != 0:
+                                log_prob = self.log_proba_rule(A, B, C)
+                                if pr[i, j, A] < self.log_proba_rule(A, B, C) + pr[i, k, B] + pr[k, j, C]:
+                                    pr[i, j, A] = self.log_proba_rule(A, B, C) + pr[i, k, B] + pr[k, j, C]
+                                    back[i, j, A] = (k, B, C)
+        return back
+
+    def build_tree(self, back, i, j, node):
+        print(type(node))
+        tree = Tree(node._symbol, children=[])
+        if (i,j,node) in back.keys():
+            k, B, C = back[i, j, node]
+            tree.append(self.build_tree(back,i,k,B))
+            tree.append(self.build_tree(back,k,j,C))
+            return tree
+        else:
+            return tree
 
 
 
 lines = read_file('data/sequoia-corpus.txt')
 parsetree = CustomTree.fromstring(lines[1])[0]
-parsetree.collapse_unary(True)
+parsetree.collapse_unary(True,True)
 parsetree.chomsky_normal_form()
 parsetree.pretty_print()
 
-rules =parsetree.productions()
-#print(parsetree.get_rules(parsetree[0], parsetree[0].label()))
+rules = parsetree.productions()
 
+#print(parsetree.get_rules(parsetree[0], parsetree[0].label()))
 
 par = PCFGParser()
 par.count_rules(rules)
-par.learn()
+
+back = par.CKY(parsetree.flatten())
+for  i,j, node in back:
+    if i==0 and j==5:
+        saved_node = node
+print(back)
+tree = par.build_tree(back,0,5,saved_node)
+tree.pretty_print()
 #print(par.non_terminal_rules_counts)
+
