@@ -86,6 +86,29 @@ class CustomTree(Tree):
             return False
 
 
+class ListTrees(object):
+    def __init__(self, filepath):
+        self.filepath = filepath
+        self.trees = []
+        self.lines = read_file(filepath)
+        self.rules = []
+        for line in self.lines:
+            tree = CustomTree.fromstring(line)[0]
+            tree.collapse_unary(True, True)
+            tree.chomsky_normal_form()
+
+            self.trees.append(tree)
+            self.rules.extend(tree.productions())
+
+    def __getitem__(self, item):
+        return self.trees[item]
+
+    def get_vocabulary(self):
+        res = []
+        for tree in self.trees:
+            res.extend(tree.leaves())
+        return list(set(res))
+
 class PCFGParser(object):
     def __init__(self):
         self.lexicon_rules_counts = defaultdict(int)  # count non terminal symbols
@@ -118,7 +141,7 @@ class PCFGParser(object):
         return np.log(float(self.non_terminal_rules_counts[key, (w1, w2)])/self.non_terminal_counts[key])
 
     def CKY(self, sentence):
-        pr = defaultdict(lambda:-np.inf)
+        pr = {}
         back = defaultdict()
         lexicon_rules = list(self.lexicon_counts.keys())
         non_terminal_rules = list(self.non_terminal_rules_counts.keys())
@@ -131,47 +154,50 @@ class PCFGParser(object):
             for i in range(j-2, -1, -1):
                 for k in range(i+1, j):
                     for A, (B, C) in non_terminal_rules:
-
-                        if pr[i, k, B] > -np.inf and pr[k, j, C] > -np.inf:
+                        if ((i, k, B) in pr) and ((k, j, C) in pr) and (pr[i, k, B] > -np.inf) and (pr[k, j, C] > -np.inf):
                             if self.proba_rule(A, B, C) != 0:
-                                log_prob = self.log_proba_rule(A, B, C)
-                                if pr[i, j, A] < self.log_proba_rule(A, B, C) + pr[i, k, B] + pr[k, j, C]:
+                                if (i, j, A) in pr and pr[i, j, A] < self.log_proba_rule(A, B, C) + pr[i, k, B] + pr[k, j, C]:
                                     pr[i, j, A] = self.log_proba_rule(A, B, C) + pr[i, k, B] + pr[k, j, C]
                                     back[i, j, A] = (k, B, C)
-        return back
+                                elif (i, j, A) not in pr:
+                                    pr[i, j, A] = self.log_proba_rule(A, B, C) + pr[i, k, B] + pr[k, j, C]
+                                    back[i, j, A] = (k, B, C)
 
-    def build_tree(self, back, i, j, node):
-        print(type(node))
+            max_proba = -np.inf
+            for A, (B, C) in non_terminal_rules:
+                if (0, len(sentence), A) in pr:
+                    if pr[0, len(sentence), A] > max_proba:
+                        arg_max = A
+
+        return self.build_tree(sentence, back, 0, len(sentence), arg_max)
+
+    def build_tree(self, sentence, back, i, j, node):
         tree = Tree(node._symbol, children=[])
-        if (i,j,node) in back.keys():
-            k, B, C = back[i, j, node]
-            tree.append(self.build_tree(back,i,k,B))
-            tree.append(self.build_tree(back,k,j,C))
+        if (i,j) == (j-1, j):
+            tree.append(sentence[j-1])
             return tree
         else:
-            return tree
+            if (i,j,node) in back.keys():
+                k, B, C = back[i, j, node]
+                tree.append(self.build_tree(sentence, back, i, k, B))
+                tree.append(self.build_tree(sentence, back, k, j, C))
+                return tree
+            else:
+                return tree
 
 
-
-lines = read_file('data/sequoia-corpus.txt')
-parsetree = CustomTree.fromstring(lines[1])[0]
-parsetree.collapse_unary(True,True)
-parsetree.chomsky_normal_form()
-parsetree.pretty_print()
-
-rules = parsetree.productions()
-
-#print(parsetree.get_rules(parsetree[0], parsetree[0].label()))
-
-par = PCFGParser()
-par.count_rules(rules)
-
-back = par.CKY(parsetree.flatten())
-for  i,j, node in back:
-    if i==0 and j==5:
-        saved_node = node
-print(back)
-tree = par.build_tree(back,0,5,saved_node)
-tree.pretty_print()
-#print(par.non_terminal_rules_counts)
+#
+# trees = ListTrees('data/sequoia-corpus.txt')
+#
+# par = PCFGParser()
+# par.count_rules(trees.rules)
+#
+# parsetree = trees[1]
+# parsetree.un_chomsky_normal_form()
+# parsetree.pretty_print()
+# print('cou')
+# tree = par.CKY(parsetree.flatten())
+# tree.un_chomsky_normal_form()
+# tree.pretty_print()
+# #print(par.non_terminal_rules_counts)
 
