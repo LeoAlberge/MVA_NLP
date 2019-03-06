@@ -10,7 +10,7 @@ def read_file(filepath):
 def split_files(file_dir, main_file):
     lines = read_file(filepath=main_file)
     size = len(lines)
-    train, dev, test =  lines[0:int(size*8/10)], lines[int(size*8/10):int(size*9/10)], lines[int(size*9/10): int(size)]
+    train, dev, test = lines[0:int(size*8/10)], lines[int(size*8/10):int(size*9/10)], lines[int(size*9/10): int(size)]
 
     with open(os.path.join(file_dir, 'train.txt'), 'w') as f:
         f.writelines(train)
@@ -22,4 +22,4 @@ def split_files(file_dir, main_file):
         f.writelines(test)
 
 
-split_files('data','data/sequoia-corpus.txt')
+split_files('data', 'data/sequoia-corpus.txt')

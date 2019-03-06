@@ -1,10 +1,9 @@
 import pickle
 import numpy as np
-import codecs
 import io
 from levenshtein_distance import levenshtein
 
-from parse_file import ListTrees
+from trees import ListTrees
 
 with io.open('data/polyglot.pkl', 'rb') as f:
     words, embeddings = pickle.load(f, encoding='latin-1')
@@ -12,8 +11,8 @@ with io.open('data/polyglot.pkl', 'rb') as f:
 
 class OvO(object):
     def __init__(self, embeddings_filepath, train_filepath):
-        with io.open(embeddings_filepath, 'rb') as f:
-            words, embeddings = pickle.load(f, encoding='latin-1')
+        with io.open(embeddings_filepath, 'rb') as file:
+            words, embeddings = pickle.load(file, encoding='latin-1')
 
         self.vocabulary = ListTrees(filepath=train_filepath).get_vocabulary()
         self.id2vocabulary = {w: id for w, id in enumerate(self.vocabulary)}
@@ -25,26 +24,26 @@ class OvO(object):
 
         self.id2word = {w: id for w, id in enumerate(self.words)}
         self.word2id = {v: k for k, v in self.id2word.items()}
-        self.words = np.array(words).reshape(-1,1)
+        self.words = np.array(words).reshape(-1, 1)
 
-    def most_similar_embeddings(self, w, K=5):
+    def most_similar_embeddings(self, w, k=5):
         # K most similar words
         # We exclude the first word because it's the words itself
         if w in self.word2id:
-            K_ids = np.apply_along_axis(arr=self.vocabulary,
+            k_ids = np.apply_along_axis(arr=self.vocabulary,
                                         func1d=lambda x: -self.embedding_score(x[0], w),
-                                        axis=1).argsort()[0:K]
+                                        axis=1).argsort()[0:k]
 
-            return [self.id2vocabulary[word] for word in K_ids]
+            return [self.id2vocabulary[word] for word in k_ids]
         else:
             return None
 
-    def most_similar_levenshtein(self, w, K=5):
+    def most_similar_levenshtein(self, w, k=5):
         # K most similar words
-        K_ids = np.apply_along_axis(arr=self.vocabulary,
+        k_ids = np.apply_along_axis(arr=self.vocabulary,
                                     func1d=lambda x: levenshtein(x[0], w),
-                                    axis=1).argsort()[0:K]
-        return [self.id2vocabulary[word] for word in K_ids]
+                                    axis=1).argsort()[0:k]
+        return [self.id2vocabulary[word] for word in k_ids]
 
     def embedding_score(self, w1, w2):
         # cosine similarity: np.dot  -  np.linalg.norm
@@ -64,11 +63,10 @@ class OvO(object):
         else:
             return self.most_similar_levenshtein(w, 1)[0]
 
-
-o = OvO('data/polyglot.pkl', 'data/train.txt')
-
-
-print(o.most_similar('chien'))
-
+    def modify_tokens(self, tokens):
+        res = []
+        for token in tokens:
+            res.append(self.most_similar(token))
+        return res
 
 

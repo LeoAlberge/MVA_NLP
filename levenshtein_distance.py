@@ -1,5 +1,5 @@
 
-def minimim(i,j,k):
+def minimim(i, j, k):
     """
     Returns the minimum value
     :param i:
@@ -31,7 +31,7 @@ def levenshtein(chaine1, chaine2):
 
     distance = {}
     indice = (0, 0)
-    distance[indice]=0
+    distance[indice] = 0
 
     for i in range(0, size1+1):
         indice = (i, 0)
