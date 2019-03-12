@@ -63,11 +63,26 @@ def leaves_with_labels(tree, label=None):
     leaves = []
     for child in tree:
         if isinstance(child, Tree):
-            leaves.extend(child.leaves_with_labels(child.label()))
+            leaves.extend(leaves_with_labels(child, child.label()))
         else:
             leaves.append((child, label))
     return leaves
 
+
+def leaves_labels(tree, label=None):
+    """
+    Return list with leaves token and label(POS)
+    :param tree
+    :param label:
+    :return:
+    """
+    leaves = []
+    for child in tree:
+        if isinstance(child, Tree):
+            leaves.extend(leaves_labels(child, child.label()))
+        else:
+            leaves.append(label)
+    return leaves
 
 class ListTrees(object):
     def __init__(self, filepath):
@@ -75,10 +90,12 @@ class ListTrees(object):
         self.trees = []
         self.lines = read_file(filepath)
         self.rules = []
+        self.leaves_with_label = []
         for line in self.lines:
             tree = Tree.fromstring(line)[0]
             clean_labels(tree)
-            tree.collapse_unary(True, True)
+            self.leaves_with_label.extend(leaves_with_labels(tree))
+            tree.collapse_unary(True, True, '&')
             tree.chomsky_normal_form()
 
             self.trees.append(tree)

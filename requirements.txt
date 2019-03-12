@@ -5,3 +5,5 @@ matplotlib
 scipy
 nltk
 polyglot
+numba
+pycallgraph

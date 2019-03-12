@@ -1,6 +1,37 @@
 from collections import defaultdict
 from nltk.tree import Tree
 import numpy as np
+from timer import timeit
+from time import time
+from numba import jit
+
+
+class PLexicon(object):
+    def __init__(self):
+        self.count_rules = {}
+        self.count_words = defaultdict(int)
+
+    def learn(self, counts):
+        for count in counts:
+            key, pos = count
+            self.count_words[key] +=1
+            if key not in self.count_rules:
+                self.count_rules[key] = defaultdict(int)
+                self.count_rules[key][pos] = 1
+            else:
+                self.count_rules[key][pos] += 1
+
+    def proba(self, word, pos):
+        return self.count_rules[word][pos] / self.count_words[word]
+
+    def predict(self, word):
+        argmax = None
+        max_proba = -np.inf
+        for pos in self.count_rules[word]:
+            if self.proba(word, pos) > max_proba:
+                max_proba = self.proba(word, pos)
+                argmax = pos
+        return argmax
 
 
 class PCFGParser(object):
@@ -32,39 +63,76 @@ class PCFGParser(object):
         return np.log(float(self.lexicon_rules_counts[key, word])/self.lexicon_counts[key])
 
     def log_proba_rule(self, key, w1, w2):
-        return np.log(float(self.non_terminal_rules_counts[key, (w1, w2)])/self.non_terminal_counts[key])
+        res = np.log(float(self.non_terminal_rules_counts[key, (w1, w2)])/self.non_terminal_counts[key])
+        return res
 
+    @timeit
     def cky(self, sentence):
-        pr = {}
+        log_pr = {}
         back = defaultdict()
-        lexicon_rules = list(self.lexicon_counts.keys())
-        non_terminal_rules = list(self.non_terminal_rules_counts.keys())
-        for j in range(1, len(sentence)+1):
-            word = tuple([sentence[j-1]])
+        lexicon_rules = self.lexicon_counts.keys()
+        non_terminal_rules = self.non_terminal_rules_counts.keys()
+        if len(sentence) > 1:
+            for j in range(1, len(sentence)+1):
+                word = tuple([sentence[j-1]])
+                for key in lexicon_rules:
+                    if self.proba_lexicon(key, word) != 0:
+                        log_pr[j-1, j, key] = self.log_proba_lexicon(key, word)
+
+                for i in range(j-2, -1, -1):
+                    for k in range(i+1, j):
+                        for A, (B, C) in non_terminal_rules:
+                            if ((i, k, B) in log_pr) and ((k, j, C) in log_pr):
+                                log_pr_ikb = log_pr[i, k, B]
+                                log_pr_kjc = log_pr[k, j, C]
+                                log_pr_abc = self.log_proba_rule(A, B, C)
+
+                                if (i, j, A) not in log_pr:
+                                    log_pr[i, j, A] = log_pr_abc + log_pr_ikb + log_pr_kjc
+                                    back[i, j, A] = (k, B, C)
+                                elif (i, j, A) in log_pr and log_pr[i, j, A] < log_pr_abc + log_pr_ikb + log_pr_kjc:
+                                    log_pr[i, j, A] = log_pr_abc + log_pr_ikb + log_pr_kjc
+                                    back[i, j, A] = (k, B, C)
+
+            parsable = False
+            h_prob = -np.inf
+            for n1, n2, A in log_pr.keys():
+                if (n1, n2, A) == (0, len(sentence), A):
+                    if log_pr[0, len(sentence), A] > h_prob:
+                        arg_max = A
+                        parsable = True
+
+            if not parsable:
+                return False, None
+
+            res = self.build_tree(sentence, back, 0, len(sentence), arg_max)
+            res.set_label('SENT')
+            res.un_chomsky_normal_form(unaryChar='&')
+            res.pretty_print()
+
+            return True, res
+
+        else:
+            word = tuple([sentence[0]])
             for key in lexicon_rules:
                 if self.proba_lexicon(key, word) != 0:
-                    pr[j-1, j, key] = self.log_proba_lexicon(key, word)
+                    log_pr[0, 1, key] = self.log_proba_lexicon(key, word)
 
-            for i in range(j-2, -1, -1):
-                for k in range(i+1, j):
-                    for A, (B, C) in non_terminal_rules:
-                        if ((i, k, B) in pr) and ((k, j, C) in pr) and (pr[i, k, B] > -np.inf) and (pr[k, j, C] > -np.inf):
-                            if self.proba_rule(A, B, C) != 0:
-                                if (i, j, A) in pr and pr[i, j, A] < self.log_proba_rule(A, B, C) + pr[i, k, B] + pr[k, j, C]:
-                                    pr[i, j, A] = self.log_proba_rule(A, B, C) + pr[i, k, B] + pr[k, j, C]
-                                    back[i, j, A] = (k, B, C)
-                                elif (i, j, A) not in pr:
-                                    pr[i, j, A] = self.log_proba_rule(A, B, C) + pr[i, k, B] + pr[k, j, C]
-                                    back[i, j, A] = (k, B, C)
-
-            max_proba = -np.inf
-            for A, (_, _) in non_terminal_rules:
-                if (0, len(sentence), A) in pr:
-                    if pr[0, len(sentence), A] > max_proba:
+            h_prob = -np.inf
+            parsable = False
+            for A in lexicon_rules:
+                if (0, len(sentence), A) in log_pr:
+                    if log_pr[0, len(sentence), A] > h_prob:
                         arg_max = A
-        res = self.build_tree(sentence, back, 0, len(sentence), arg_max)
-        res.un_chomsky_normal_form()
-        return res
+                        parsable = True
+
+            if not parsable:
+                return False, None
+
+            res = self.build_tree(sentence, back, 0, len(sentence), arg_max)
+            res.un_chomsky_normal_form(unaryChar='&')
+
+            return True, res
 
     def build_tree(self, sentence, back, i, j, node):
         tree = Tree(node._symbol, children=[])
