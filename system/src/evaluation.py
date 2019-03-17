@@ -14,21 +14,20 @@ def accuracy(list_pos_predicted, list_pos_true):
 
 
 def evaluate_parser(filepath):
+    """
+    Method to evaluate the parser
+    :param filepath: path to save the results
+    """
     ovo = OvO('data/polyglot.pkl', 'data/train.txt')
     train_trees = ListTrees('data/train.txt')
 
     par = PCFGParser()
     par.count_rules(train_trees.rules)
 
-    print(np.array(par.non_terminal_rules_counts.values()))
 
     lex = PLexicon()
     lex.learn(train_trees.rules_unchomsky)
 
-    print(ovo.most_similar_levenshtein('voile', k=5))
-
-    print(ovo.most_similar('voile', True))
-    print(lex.count_rules[ovo.most_similar('voile', verbose=True)])
 
     y_true = []
     y_pred = []
@@ -54,6 +53,10 @@ def evaluate_parser(filepath):
 
 
 def evaluate_lexicon():
+    """
+    Method to evaluate the probabilized lexicon only.(Greedy search)
+    :return:
+    """
     ovo = OvO('data/polyglot.pkl', 'data/train.txt')
     train_trees = ListTrees('data/train.txt')
 
@@ -83,4 +86,4 @@ def evaluate_lexicon():
 
     print('Accuracy on dev set {}:'.format(accuracy(y_pred, y_true)))
     
-#evaluate_parser('data/evaluation_data.parser_output')
+evaluate_parser('data/evaluation_data.parser_output')

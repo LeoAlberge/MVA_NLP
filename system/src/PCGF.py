@@ -2,7 +2,6 @@ from collections import defaultdict
 from nltk.tree import Tree
 import numpy as np
 from timer import timeit
-from time import time
 
 
 class PLexicon(object):
@@ -38,6 +37,7 @@ class PLexicon(object):
             res.append(self.predict(word))
         return res
 
+
 class PCFGParser(object):
     def __init__(self):
         self.lexicon_rules_counts = defaultdict(int)  # count non terminal symbols
@@ -71,11 +71,22 @@ class PCFGParser(object):
         return res
 
     @timeit
-    def cky(self, sentence):
+    def cky(self, sentence, remove_rules=True):
+        """
+        Main function of our probabilistic context-free grammar parser.
+        :param sentence: sentence ot be parsed
+        :param remove_rules:
+        :return: condition: True if parsable, else False.
+                 parsed_tree
+        """
         log_pr = {}
         back = defaultdict()
         lexicon_rules = self.lexicon_counts.keys()
-        non_terminal_rules = [rule for rule, count in self.non_terminal_rules_counts.items() if count > 1]
+        if remove_rules:
+            non_terminal_rules = [rule for rule, count in self.non_terminal_rules_counts.items() if count > 1]
+        else:
+            non_terminal_rules = self.non_terminal_rules_counts.keys()
+
         if len(sentence) > 1:
             for j in range(1, len(sentence)+1):
                 word = tuple([sentence[j-1]])
@@ -83,7 +94,6 @@ class PCFGParser(object):
                     pr_lex = self.proba_lexicon(key, word)
                     if pr_lex != 0:
                         log_pr[j-1, j, key] = np.log(pr_lex)
-                #self.op_cky(non_terminal_rules, log_pr, back, j)
                 for i in range(j-2, -1, -1):
                     for k in range(i+1, j):
                         for A, (B, C) in non_terminal_rules:
@@ -113,7 +123,6 @@ class PCFGParser(object):
             res = self.build_tree(sentence, back, 0, len(sentence), arg_max)
             res.set_label('SENT')
             res.un_chomsky_normal_form(unaryChar='&')
-            #res.pretty_print()
 
             return True, res
 

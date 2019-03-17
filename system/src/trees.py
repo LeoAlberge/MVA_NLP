@@ -20,22 +20,6 @@ def clean_labels(tree):
             clean_labels(child)
 
 
-def is_unit_rule(tree):
-    """
-
-    :param tree:
-    :return:
-    """
-    if len(tree)==1:
-        for child in tree:
-            if isinstance(child, Tree):
-                return True
-            else:
-                return False
-    else:
-        return False
-
-
 def is_terminal(tree):
     """
 
@@ -102,6 +86,9 @@ def leaves_labels(tree, label=None):
 
 
 class ListTrees(object):
+    """
+    Class to store trees and extract rules.
+    """
     def __init__(self, filepath):
         self.filepath = filepath
         self.trees = []

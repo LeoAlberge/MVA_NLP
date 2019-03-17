@@ -1,5 +1,5 @@
 
-def minimim(i, j, k):
+def minimum(i, j, k):
     """
     Returns the minimum value
     :param i:
@@ -50,7 +50,7 @@ def levenshtein(chaine1, chaine2):
             ajout = 1
             if chaine1[i-1] == chaine2[j-1]:
                 ajout = 0
-            distance[indice] = minimim(distance[prec1]+1, distance[prec2]+1, distance[prec3]+ajout)
+            distance[indice] = minimum(distance[prec1]+1, distance[prec2]+1, distance[prec3]+ajout)
 
     indice = (size1, size2)
     return distance[indice]
