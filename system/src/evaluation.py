@@ -8,7 +8,7 @@ def accuracy(list_pos_predicted, list_pos_true):
 
     :param list_pos_predicted:
     :param list_pos_true:
-    :return: Accuracy
+    :return: Accuracyc
     """
     return (np.array(list_pos_predicted)==np.array(list_pos_true)).sum()/len(list_pos_predicted)
 
@@ -86,4 +86,4 @@ def evaluate_lexicon():
 
     print('Accuracy on dev set {}:'.format(accuracy(y_pred, y_true)))
     
-evaluate_parser('data/evaluation_data.parser_output')
+#evaluate_parser('data/evaluation_data.parser_output')

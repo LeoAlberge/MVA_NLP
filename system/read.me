@@ -1,0 +1,31 @@
+This file explained the arguments of the run.sh:
+
+--sentence, A sentence to parse. It must be of the separated by 1 white space exactly:
+Example: "Je suis un grand ours"
+
+--ovo, Out of vocabulary module, True for mixed strategy, False for Levenshtein only.
+
+--remove_rules, Remove rules that occur only once.
+
+--verbose, Show complementary information.
+
+It will print the parsed tree if the sentence is parsable.
+
+Full example:
+In directory system:
+/run.sh --sentence "je suis un gros ours" --verbose true --remove_rules false
+Loading OVO..
+Loading done
+Training parser..
+Training done
+['je', 'suis', 'un', 'gros', 'ours']
+['je', 'suis', 'un', 'gros', 'ours']
+Elapsed time: 0.01992058753967285
+             SENT
+      ________|____
+     VN            NP
+  ___|___      ____|____
+CLS      V   DET  ADJ   NC
+ |       |    |    |    |
+ je     suis  un  gros ours
+

@@ -1,12 +1,10 @@
 from trees import ListTrees, leaves_labels, remove_leaves
 from ovo import OvO
 from PCGF import PCFGParser, PLexicon
-from evaluation import accuracy
-import numpy as np
 import argparse
 
 
-parser = argparse.ArgumentParser("simple_example")
+parser = argparse.ArgumentParser("PCFG")
 parser.add_argument("--sentence", help="A sentence to parse", type=str)
 parser.add_argument("--ovo", help="Out of vocabulary module, True for mixed strategy, False for evenshtein only", type=bool, default=True)
 parser.add_argument("--remove_rules", help="Remove rules that occur only once", type=bool, default=True)
@@ -19,7 +17,7 @@ def main():
     if args.verbose:
         print('Loading OVO..')
 
-    ovo = OvO('data/polyglot.pkl', 'data/train.txt')
+    ovo = OvO('src/data/polyglot.pkl', 'src/data/train.txt')
 
     if args.verbose:
         print('Loading done')
@@ -27,7 +25,7 @@ def main():
     if args.verbose:
         print('Training parser..')
 
-    train_trees = ListTrees('data/train.txt')
+    train_trees = ListTrees('src/data/train.txt')
     par = PCFGParser()
     par.count_rules(train_trees.rules)
     lex = PLexicon()
