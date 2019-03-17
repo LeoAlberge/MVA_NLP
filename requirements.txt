@@ -1,9 +1,0 @@
-numpy
-pytree
-jupyter
-matplotlib
-scipy
-nltk
-polyglot
-numba
-pycallgraph
